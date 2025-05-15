@@ -27,13 +27,13 @@ function create_prs() {
     PR_TITLE="$2"
 
     if [ -z "$SOURCE_BRANCH" ]; then
-        echo "Erro: Nome da branch de origem não informado."
-        echo "Uso: pal-tool create-prs <source_branch> [pr_title]"
+        echo "Error: Source branch name not provided."
+        echo "Usage: pal-tool create-prs <source_branch> [pr_title]"
         exit 1
     fi
 
     if [ -z "$PR_TITLE" ]; then
-        PR_TITLE="[${SOURCE_BRANCH}] Test de PRs Script"
+        PR_TITLE="[${SOURCE_BRANCH}] PRs Script Test"
     fi
 
     TARGET_BRANCHES=("test" "stage" "build_branch")
@@ -41,11 +41,11 @@ function create_prs() {
     for TARGET_BRANCH in "${TARGET_BRANCHES[@]}"; do
         PR_FULL_TITLE="[${SOURCE_BRANCH}][${TARGET_BRANCH^^}] $PR_TITLE"
 
-        echo "🔧 Criando PR de ${SOURCE_BRANCH} para ${TARGET_BRANCH} com título: ${PR_FULL_TITLE}"
+        echo "🔧 Creating PR from ${SOURCE_BRANCH} to ${TARGET_BRANCH} with title: ${PR_FULL_TITLE}"
 
-        gh pr create --base "$TARGET_BRANCH" --head "$SOURCE_BRANCH" --title "$PR_FULL_TITLE" --body "Este PR faz merge da branch \`${SOURCE_BRANCH}\` para \`${TARGET_BRANCH}\`."
+        gh pr create --base "$TARGET_BRANCH" --head "$SOURCE_BRANCH" --title "$PR_FULL_TITLE" --body "This PR merges branch \`${SOURCE_BRANCH}\` into \`${TARGET_BRANCH}\`."
 
-        echo "✅ PR para ${TARGET_BRANCH} criado com sucesso!"
+        echo "✅ PR for ${TARGET_BRANCH} created successfully!"
     done
 }
 
