@@ -9,7 +9,7 @@
 COMMAND=$1
 
 function show_help() {
-    echo "Usage: $0 {create-prs|recon|help} ..."
+    echo "Usage: pal-tool {create-prs|recon|help} ..."
     echo
     echo "Commands:"
     echo "  create-prs <source_branch> [pr_title]   Create pull requests for multiple target branches."
@@ -17,9 +17,9 @@ function show_help() {
     echo "  help | -h | --help                      Show this help message."
     echo
     echo "Examples:"
-    echo "  $0 create-prs feature-branch 'My PR Title'"
-    echo "  $0 recon feature-branch main"
-    echo "  $0 help"
+    echo "  pal-tool create-prs feature-branch 'My PR Title'"
+    echo "  pal-tool recon feature-branch main"
+    echo "  pal-tool help"
 }
 
 function create_prs() {
@@ -28,7 +28,7 @@ function create_prs() {
 
     if [ -z "$SOURCE_BRANCH" ]; then
         echo "Erro: Nome da branch de origem não informado."
-        echo "Uso: $0 create-prs <source_branch> [pr_title]"
+        echo "Uso: pal-tool create-prs <source_branch> [pr_title]"
         exit 1
     fi
 
@@ -55,7 +55,7 @@ function recon() {
 
     if [ -z "$BRANCH_NAME" ] || [ -z "$BASE_BRANCH" ]; then
         echo "❌ Error: Both branch name and base branch are required."
-        echo "Usage: $0 recon <branch_name> <base_branch>"
+        echo "Usage: pal-tool recon <branch_name> <base_branch>"
         exit 1
     fi
 
@@ -127,7 +127,7 @@ case "$COMMAND" in
         show_help
         ;;
     *)
-        echo "Invalid command. Use '$0 help' for usage information."
+        echo "Invalid command. Use 'pal-tool help' for usage information."
         exit 1
         ;;
 esac
