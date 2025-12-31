@@ -206,7 +206,7 @@ function mw_health() {
         "Product Sync"
         "Label Sync"
     )
-    MAX_MESSAGE_CHARS=300
+    MAX_MESSAGE_CHARS=1000
     if [ -t 1 ]; then
         GREEN='\033[0;32m'
         RED='\033[0;31m'
