@@ -6,6 +6,7 @@ A powerful command-line tool for managing GitHub pull requests and branch reconc
 
 - Create multiple pull requests across different target branches with a single command
 - Automated branch reconciliation process
+- Middleware health check with per-environment process IDs
 - Simple and intuitive command-line interface
 - GitHub CLI integration
 
@@ -60,7 +61,7 @@ Now you can use the `pal-tool` command from any directory!
 
 ## Usage
 
-The tool provides three main commands:
+The tool provides four main commands:
 
 ### 1. Create Pull Requests
 
@@ -100,6 +101,21 @@ pal-tool -h
 pal-tool --help
 ```
 
+### 4. Middleware Health Check
+
+Authenticate, fetch the latest history for each configured process, and print a quick status list.
+
+```bash
+pal-tool mw-health <DEV|TST|PRD>
+```
+
+Example:
+```bash
+pal-tool mw-health dev
+```
+
+The environment argument is case-insensitive. You will be prompted for user, password, and TOTP code.
+
 ## How It Works
 
 ### Create PRs Command
@@ -113,6 +129,16 @@ pal-tool --help
 - Merges changes from the source branch into the reconciliation branch
 - Handles existing reconciliation branches
 - Includes error handling and rollback capabilities
+
+### Middleware Health Check
+- Reads process IDs from `process.json` based on the selected environment
+- Authenticates via Basic Auth to retrieve a token
+- Queries the history endpoint for each process and prints Success, Running, or Fail
+- Truncates long failure messages to keep output compact
+
+## Configuration
+
+Process IDs are stored in `process.json` under the `DEV`, `TST`, and `PRD` keys. Update these IDs if the environment changes.
 
 ## Error Handling
 
