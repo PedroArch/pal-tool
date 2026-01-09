@@ -4,24 +4,29 @@
 # usage:
 #   ./pal-tool create-prs <source_branch> [pr_title]
 #   ./pal-tool recon <branch_name> <base_branch>
-#   ./pal-tool mw-health <DEV|TST|PRD>
+#   ./pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]
 #   ./pal-tool help | -h | --help
 
 COMMAND=$1
 
 function show_help() {
-    echo "Usage: pal-tool {create-prs|recon|help} ..."
+    echo "Usage: pal-tool {create-prs|recon|mw-health|help} ..."
     echo
     echo "Commands:"
-    echo "  create-prs <source_branch> [pr_title]   Create pull requests for multiple target branches."
-    echo "  recon <branch_name> <base_branch>       Create a reconciliation branch and merge changes."
-    echo "  mw-health <DEV|TST|PRD>                 Authenticate and print middleware token."
-    echo "  help | -h | --help                      Show this help message."
+    echo "  create-prs <source_branch> [pr_title]              Create pull requests for multiple target branches."
+    echo "  recon <branch_name> <base_branch>                  Create a reconciliation branch and merge changes."
+    echo "  mw-health <DEV|TST|PRD> [-m|--max-chars <number>]  Check middleware health and print report."
+    echo "  help | -h | --help                                 Show this help message."
+    echo
+    echo "Options for mw-health:"
+    echo "  -m, --max-chars <number>    Maximum characters for error messages (default: 300)"
     echo
     echo "Examples:"
     echo "  pal-tool create-prs feature-branch 'My PR Title'"
     echo "  pal-tool recon feature-branch main"
     echo "  pal-tool mw-health DEV"
+    echo "  pal-tool mw-health TST -m 500"
+    echo "  pal-tool mw-health PRD --max-chars 1000"
     echo "  pal-tool help"
 }
 
@@ -121,13 +126,31 @@ function recon() {
 
 function mw_health() {
     ENV_NAME_RAW=$1
+    shift
+    MAX_MESSAGE_CHARS=300
+
+    # Parse optional flags
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            -m|--max-chars)
+                MAX_MESSAGE_CHARS="$2"
+                shift 2
+                ;;
+            *)
+                echo "Error: Unknown option '$1'"
+                echo "Usage: pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]"
+                exit 1
+                ;;
+        esac
+    done
+
     ENV_NAME=$(printf '%s' "$ENV_NAME_RAW" | tr '[:lower:]' '[:upper:]')
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
     PROCESS_FILE="${SCRIPT_DIR}/process.json"
 
     if [ -z "$ENV_NAME" ]; then
         echo "Error: Environment not provided."
-        echo "Usage: pal-tool mw-health <DEV|TST|PRD>"
+        echo "Usage: pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]"
         exit 1
     fi
 
@@ -206,7 +229,7 @@ function mw_health() {
         "Product Sync"
         "Label Sync"
     )
-    MAX_MESSAGE_CHARS=1000
+
     if [ -t 1 ]; then
         GREEN='\033[0;32m'
         RED='\033[0;31m'
@@ -218,6 +241,12 @@ function mw_health() {
         YELLOW=''
         RESET=''
     fi
+
+    # Arrays to track results for final report
+    declare -a SUCCESS_PROCESSES=()
+    declare -a RUNNING_PROCESSES=()
+    declare -a FAILED_PROCESSES=()
+    declare -a FAILED_MESSAGES=()
 
     get_process_id() {
         local env_name=$1
@@ -243,8 +272,11 @@ function mw_health() {
         PROCESS_ID=$(get_process_id "$ENV_NAME" "$PROCESS_NAME")
         if [ -z "$PROCESS_ID" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
-            echo "Missing process id for ${ENV_NAME}."
+            ERROR_MSG="Missing process id for ${ENV_NAME}."
+            echo "$ERROR_MSG"
             echo
+            FAILED_PROCESSES+=("$PROCESS_NAME")
+            FAILED_MESSAGES+=("$ERROR_MSG")
             continue
         fi
 
@@ -262,8 +294,11 @@ function mw_health() {
 
         if [ -z "$HISTORY_RESPONSE" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
-            echo "Empty response from history endpoint."
+            ERROR_MSG="Empty response from history endpoint."
+            echo "$ERROR_MSG"
             echo
+            FAILED_PROCESSES+=("$PROCESS_NAME")
+            FAILED_MESSAGES+=("$ERROR_MSG")
             continue
         fi
 
@@ -271,8 +306,11 @@ function mw_health() {
 
         if [ -z "$HISTORY_RESPONSE_STRIPPED" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
-            echo "Empty response from history endpoint."
+            ERROR_MSG="Empty response from history endpoint."
+            echo "$ERROR_MSG"
             echo
+            FAILED_PROCESSES+=("$PROCESS_NAME")
+            FAILED_MESSAGES+=("$ERROR_MSG")
             continue
         fi
 
@@ -281,9 +319,11 @@ function mw_health() {
                 ;;
             *)
                 printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
-                echo "Non-JSON response from history endpoint:"
-                echo "$HISTORY_RESPONSE"
+                ERROR_MSG="Non-JSON response from history endpoint: $HISTORY_RESPONSE"
+                echo "$ERROR_MSG"
                 echo
+                FAILED_PROCESSES+=("$PROCESS_NAME")
+                FAILED_MESSAGES+=("$ERROR_MSG")
                 continue
                 ;;
         esac
@@ -294,16 +334,20 @@ function mw_health() {
 
         if [ -z "$STATUS" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
-            echo "Could not parse status from history response."
-            echo "$HISTORY_RESPONSE_STRIPPED"
+            ERROR_MSG="Could not parse status from history response."
+            echo "$ERROR_MSG"
             echo
+            FAILED_PROCESSES+=("$PROCESS_NAME")
+            FAILED_MESSAGES+=("$ERROR_MSG")
             continue
         fi
 
         if [ "${STATUS,,}" = "success" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${GREEN}Success${RESET} ✅"
+            SUCCESS_PROCESSES+=("$PROCESS_NAME")
         elif [ "${STATUS,,}" = "running" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${YELLOW}Running${RESET} ⏳"
+            RUNNING_PROCESSES+=("$PROCESS_NAME")
         else
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
             if [ -n "$MESSAGE" ]; then
@@ -312,9 +356,49 @@ function mw_health() {
                 fi
                 printf '%b\n' "$MESSAGE"
             fi
+            FAILED_PROCESSES+=("$PROCESS_NAME")
+            FAILED_MESSAGES+=("$MESSAGE")
         fi
         echo
     done
+
+    # Print final report
+    echo
+    echo "==============================================="
+    echo "Final Report"
+    echo "==============================================="
+    echo
+
+    # Print all processes with their status
+    for PROCESS_NAME in "${PROCESS_NAMES[@]}"; do
+        if [[ " ${SUCCESS_PROCESSES[*]} " =~ " ${PROCESS_NAME} " ]]; then
+            printf '%b\n' "${GREEN}✅ ${PROCESS_NAME}${RESET}"
+        elif [[ " ${RUNNING_PROCESSES[*]} " =~ " ${PROCESS_NAME} " ]]; then
+            printf '%b\n' "${YELLOW}⏳ ${PROCESS_NAME}${RESET}"
+        elif [[ " ${FAILED_PROCESSES[*]} " =~ " ${PROCESS_NAME} " ]]; then
+            printf '%b\n' "${RED}❌ ${PROCESS_NAME}${RESET}"
+        fi
+    done
+
+    # Print detailed error messages for failed processes
+    if [ ${#FAILED_PROCESSES[@]} -gt 0 ]; then
+        echo
+        for i in "${!FAILED_PROCESSES[@]}"; do
+            printf '%b\n' "${RED}${FAILED_PROCESSES[$i]}:${RESET}"
+            if [ -n "${FAILED_MESSAGES[$i]}" ]; then
+                printf '%b\n' "${FAILED_MESSAGES[$i]}"
+            fi
+            echo
+        done
+    fi
+
+    # Print summary
+    echo "==============================================="
+    printf "Total: %d | " "${#PROCESS_NAMES[@]}"
+    printf '%b' "${GREEN}Success: ${#SUCCESS_PROCESSES[@]}${RESET} | "
+    printf '%b' "${YELLOW}Running: ${#RUNNING_PROCESSES[@]}${RESET} | "
+    printf '%b\n' "${RED}Failed: ${#FAILED_PROCESSES[@]}${RESET}"
+    echo "==============================================="
 }
 
 case "$COMMAND" in
@@ -325,7 +409,8 @@ case "$COMMAND" in
         recon "$2" "$3"
         ;;
     mw-health)
-        mw_health "$2"
+        shift
+        mw_health "$@"
         ;;
     help|-h|--help)
         show_help
