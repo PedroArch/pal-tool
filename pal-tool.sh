@@ -318,7 +318,7 @@ function mw_health() {
                 -H "Content-Type: application/json" >"$HISTORY_TMP"
         ) &
         HISTORY_PID=$!
-        spinner "$HISTORY_PID" "Fetching ${PROCESS_NAME}"
+        spinner "$HISTORY_PID" "Fetching ${PROCESS_NAME} (ID: ${PROCESS_ID})"
         wait "$HISTORY_PID"
         HISTORY_RESPONSE=$(cat "$HISTORY_TMP")
         rm -f "$HISTORY_TMP"
