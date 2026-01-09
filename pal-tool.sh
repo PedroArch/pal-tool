@@ -367,6 +367,7 @@ function mw_health() {
     echo "==============================================="
     echo "Final Report"
     echo "==============================================="
+    echo "Overnight Middleware Process Health Check $(date '+%m/%d/%Y')"
     echo
 
     # Print all processes with their status
