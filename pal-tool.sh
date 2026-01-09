@@ -264,6 +264,30 @@ function mw_health() {
         ' "$PROCESS_FILE"
     }
 
+    is_html_message() {
+        local message=$1
+        # Check if message starts with HTML tags (starts with <)
+        [[ "$message" =~ ^[[:space:]]*\< ]]
+    }
+
+    format_html_message() {
+        local message=$1
+
+        # Strip HTML tags and decode common HTML entities
+        message=$(printf '%s' "$message" | \
+            sed 's/<[^>]*>//g' | \
+            sed 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/"/g; s/&#39;/'\''/g; s/&nbsp;/ /g' | \
+            sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | \
+            tr -s ' ')
+
+        # If empty after stripping, add generic message
+        if [ -z "$message" ]; then
+            message="HTML error response received (content stripped for readability)"
+        fi
+
+        printf '%s' "$message"
+    }
+
     echo "==============================================="
     echo "Middleware Process Health Check"
     echo "==============================================="
@@ -332,6 +356,13 @@ function mw_health() {
         MESSAGE_RAW=$(printf '%s' "$HISTORY_RESPONSE_STRIPPED" | sed -n '0,/"message"[[:space:]]*:/s/.*"message"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
         MESSAGE=$(printf '%s' "$MESSAGE_RAW" | sed 's/\\"/"/g; s#\\\\/#/#g')
 
+        # Check if message is HTML and format it
+        IS_HTML=false
+        if is_html_message "$MESSAGE"; then
+            MESSAGE=$(format_html_message "$MESSAGE")
+            IS_HTML=true
+        fi
+
         if [ -z "$STATUS" ]; then
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
             ERROR_MSG="Could not parse status from history response."
@@ -351,10 +382,13 @@ function mw_health() {
         else
             printf '%b\n' "${PROCESS_NAME} - ${RED}Fail${RESET} ❌"
             if [ -n "$MESSAGE" ]; then
-                if [ "${#MESSAGE}" -gt "$MAX_MESSAGE_CHARS" ]; then
-                    MESSAGE="${MESSAGE:0:$MAX_MESSAGE_CHARS}..."
+                # Only truncate if not HTML (HTML messages are always shown in full)
+                if [ "$IS_HTML" = false ] && [ "${#MESSAGE}" -gt "$MAX_MESSAGE_CHARS" ]; then
+                    MESSAGE_DISPLAY="${MESSAGE:0:$MAX_MESSAGE_CHARS}..."
+                    printf '%b\n' "$MESSAGE_DISPLAY"
+                else
+                    printf '%b\n' "$MESSAGE"
                 fi
-                printf '%b\n' "$MESSAGE"
             fi
             FAILED_PROCESSES+=("$PROCESS_NAME")
             FAILED_MESSAGES+=("$MESSAGE")

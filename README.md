@@ -163,6 +163,7 @@ pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]
 
 **Options:**
 - `-m, --max-chars <number>` (optional): Maximum characters for error messages (default: 300)
+  - Note: HTML error messages are always shown in full and bypass this limit for better readability
 
 **Interactive Prompts:**
 - `User`: Your username for authentication
@@ -316,7 +317,8 @@ The `mw-health` command monitors middleware process execution status:
    - Queries the history endpoint for latest execution
    - Parses status from JSON response
    - Displays color-coded status with appropriate emoji
-   - Shows truncated error message for failed processes
+   - Detects and formats HTML error messages (strips tags, decodes entities)
+   - Shows error messages (truncated to max-chars limit, except HTML which is always shown in full)
    - Tracks results for final report
 9. Generates comprehensive final report with:
    - Visual summary of all processes with status icons
@@ -331,6 +333,8 @@ The `mw-health` command monitors middleware process execution status:
 - Comprehensive final report with visual summary
 - Configurable error message length via `-m` or `--max-chars` flag
 - Detailed error information for failed processes
+- Intelligent HTML error message formatting (strips tags, decodes entities, shows full message)
+- HTML error messages bypass character limits for better readability
 - Summary statistics at the end
 - Secure credential handling (password masked, TOTP required)
 - Graceful error handling with informative messages
