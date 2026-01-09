@@ -266,19 +266,26 @@ function mw_health() {
 
     is_html_message() {
         local message=$1
-        # Check if message starts with HTML tags (starts with <)
-        [[ "$message" =~ ^[[:space:]]*\< ]]
+        # Check if message contains HTML tags (has < and > with tag-like content)
+        local html_pattern='<[a-zA-Z/][^>]*>'
+        [[ "$message" =~ $html_pattern ]]
     }
 
     format_html_message() {
         local message=$1
 
-        # Strip HTML tags and decode common HTML entities
+        # Convert HTML to readable text preserving structure
         message=$(printf '%s' "$message" | \
+            sed 's/<br\s*\/*>/\n/g' | \
+            sed 's/<\/li>/\n/g' | \
+            sed 's/<li>/  • /g' | \
+            sed 's/<\/ul>//g' | \
+            sed 's/<ul>//g' | \
+            sed 's/<\/b>//g' | \
+            sed 's/<b>//g' | \
             sed 's/<[^>]*>//g' | \
             sed 's/&lt;/</g; s/&gt;/>/g; s/&amp;/\&/g; s/&quot;/"/g; s/&#39;/'\''/g; s/&nbsp;/ /g' | \
-            sed 's/^[[:space:]]*//; s/[[:space:]]*$//' | \
-            tr -s ' ')
+            sed 's/^[[:space:]]*//; s/[[:space:]]*$//')
 
         # If empty after stripping, add generic message
         if [ -z "$message" ]; then
