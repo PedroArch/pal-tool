@@ -257,8 +257,11 @@ function mw_health() {
             in_env {
                 if ($0 ~ /^[[:space:]]*}/) { in_env=0 }
                 if ($0 ~ name) {
-                    match($0, /:[[:space:]]*([0-9]+)/, m)
-                    if (m[1] != "") { print m[1]; exit }
+                    if (match($0, /:[[:space:]]*[0-9]+/)) {
+                        result = substr($0, RSTART, RLENGTH)
+                        gsub(/[^0-9]/, "", result)
+                        if (result != "") { print result; exit }
+                    }
                 }
             }
         ' "$PROCESS_FILE"
