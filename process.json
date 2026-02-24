@@ -11,7 +11,9 @@
     "Organization Sync": 410,
     "Pricing Sync": 63,
     "Product Sync": 24,
-    "Label Sync": 2368
+    "Label Sync": 2368,
+		"PIM Feed Ingestion": 9784,
+		"Delete Files Process": 6925
   },
   "TST": {
     "Brand Sync": 16,
@@ -25,7 +27,9 @@
     "Organization Sync": 410,
     "Pricing Sync": 63,
     "Product Sync": 24,
-    "Label Sync": 2150
+    "Label Sync": 2150,
+		"PIM Feed Ingestion": 6069,
+		"Delete Files Process": 3110
   },
   "PRD": {
     "Brand Sync": 33,
@@ -39,6 +43,8 @@
     "Organization Sync": 29,
     "Pricing Sync": 35,
     "Product Sync": 32,
-    "Label Sync": 38
+    "Label Sync": 38,
+		"PIM Feed Ingestion": 72,
+		"Delete Files Process": 39
   }
 }

@@ -180,6 +180,7 @@ function mw_health() {
     echo
     read -r -p "TOTP code: " TOTP_CODE
 
+    # Try with TOTP in the Basic Auth string
     BASIC_AUTH=$(echo -n "${USER}:${PASSWORD}:${TOTP_CODE}" | base64)
 
     spinner() {
@@ -199,20 +200,81 @@ function mw_health() {
     (
         curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
             -H "Authorization: Basic ${BASIC_AUTH}" \
-            -H "Content-Type: application/json" >"$TOKEN_TMP"
+            -H "Content-Type: application/json" \
+            -w "\nHTTP_CODE:%{http_code}" >"$TOKEN_TMP"
     ) &
     TOKEN_PID=$!
     spinner "$TOKEN_PID" "Fetching token"
     wait "$TOKEN_PID"
-    RESPONSE=$(cat "$TOKEN_TMP")
+    FULL_RESPONSE=$(cat "$TOKEN_TMP")
     rm -f "$TOKEN_TMP"
+
+    # Extract HTTP code and response body
+    HTTP_CODE=$(echo "$FULL_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+    RESPONSE=$(echo "$FULL_RESPONSE" | sed '/HTTP_CODE:/d')
 
     TOKEN=$(printf '%s' "$RESPONSE" | sed -n 's/.*"token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
 
     if [ -z "$TOKEN" ]; then
         echo "Token not found in response."
+        echo ""
+        echo "HTTP Status Code: ${HTTP_CODE:-unknown}"
+        echo ""
+        echo "Response received:"
         echo "$RESPONSE"
-        exit 1
+        echo ""
+        echo "Debug info:"
+        echo "  User: $USER"
+        echo "  URL: ${ENV_URL}/api/ui/auth/login"
+        echo "  Auth format: username:password:totp (Base64)"
+        echo ""
+
+        # If we got a 401 or credentials error, try alternative auth methods
+        if [[ "$HTTP_CODE" == "401" ]] || [[ "$RESPONSE" == *"Credentials are required"* ]]; then
+            echo "Authentication failed. Trying alternative authentication method..."
+            echo ""
+
+            # Try with JSON body instead
+            BASIC_AUTH_NO_TOTP=$(echo -n "${USER}:${PASSWORD}" | base64)
+            TOKEN_TMP2=$(mktemp)
+            (
+                curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
+                    -H "Authorization: Basic ${BASIC_AUTH_NO_TOTP}" \
+                    -H "Content-Type: application/json" \
+                    -d "{\"totp\":\"${TOTP_CODE}\"}" \
+                    -w "\nHTTP_CODE:%{http_code}" >"$TOKEN_TMP2"
+            ) &
+            TOKEN_PID2=$!
+            spinner "$TOKEN_PID2" "Retrying with TOTP in body"
+            wait "$TOKEN_PID2"
+            FULL_RESPONSE2=$(cat "$TOKEN_TMP2")
+            rm -f "$TOKEN_TMP2"
+
+            HTTP_CODE2=$(echo "$FULL_RESPONSE2" | grep "HTTP_CODE:" | cut -d: -f2)
+            RESPONSE2=$(echo "$FULL_RESPONSE2" | sed '/HTTP_CODE:/d')
+            TOKEN=$(printf '%s' "$RESPONSE2" | sed -n 's/.*"token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+
+            if [ -z "$TOKEN" ]; then
+                echo "Alternative method also failed."
+                echo "HTTP Status Code: ${HTTP_CODE2:-unknown}"
+                echo "Response: $RESPONSE2"
+                echo ""
+                echo "Please check if:"
+                echo "  1. Your credentials are correct"
+                echo "  2. The TOTP code is valid (they expire quickly - get a fresh one)"
+                echo "  3. You have access to the ${ENV_NAME} environment"
+                echo "  4. The API endpoint has changed"
+                exit 1
+            else
+                echo "Success with alternative method!"
+            fi
+        else
+            echo "Please check if:"
+            echo "  1. Your credentials are correct"
+            echo "  2. The TOTP code is valid (they expire quickly)"
+            echo "  3. You have access to the ${ENV_NAME} environment"
+            exit 1
+        fi
     fi
 
     PROCESS_NAMES=(
@@ -228,6 +290,8 @@ function mw_health() {
         "Pricing Sync"
         "Product Sync"
         "Label Sync"
+        "PIM Feed Ingestion"
+        "Delete Files Process"
     )
 
     if [ -t 1 ]; then
