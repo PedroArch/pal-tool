@@ -192,6 +192,19 @@ pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]
 - Pricing Sync
 - Product Sync
 - Label Sync
+- PIM Feed Ingestion
+- Delete Files Process
+- Bazaarvoice Product Feed
+- Catalog Bulk Export
+- Constructor Integration Maintenance Process
+- Constructor.io Update Image URL Process
+- Constructor.io Delta Feed
+- Pause Scheduled Inventory Process
+- Remove Orphaned Skus
+- Stock Threshold
+- Store Address Sync
+- Store Postal Code Sync
+- Stores MW Cache Sync
 
 **Examples:**
 ```bash
@@ -244,7 +257,7 @@ pal-tool mw-health PRD --max-chars 1000
 # Required fields missing — parentProduct and type.
 #
 # ===============================================
-# Total: 12 | Success: 10 | Running: 0 | Failed: 1
+# Total: 25 | Success: 10 | Running: 0 | Failed: 1
 # ===============================================
 ```
 
@@ -328,7 +341,7 @@ The `mw-health` command monitors middleware process execution status:
 
 **Key Features:**
 - Multi-environment support (DEV, TST, PRD)
-- Real-time health status for 12 different processes
+- Real-time health status for 25 different processes
 - Color-coded output for quick visual scanning
 - Comprehensive final report with visual summary
 - Configurable error message length via `-m` or `--max-chars` flag

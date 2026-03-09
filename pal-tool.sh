@@ -292,6 +292,17 @@ function mw_health() {
         "Label Sync"
         "PIM Feed Ingestion"
         "Delete Files Process"
+        "Bazaarvoice Product Feed"
+        "Catalog Bulk Export"
+        "Constructor Integration Maintenance Process"
+        "Constructor.io Update Image URL Process"
+        "Constructor.io Delta Feed"
+        "Pause Scheduled Inventory Process"
+        "Remove Orphaned Skus"
+        "Stock Threshold"
+        "Store Address Sync"
+        "Store Postal Code Sync"
+        "Stores MW Cache Sync"
     )
 
     if [ -t 1 ]; then
