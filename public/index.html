@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>pal-tool</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <header>
+    <h1>pal-tool</h1>
+    <span class="subtitle">Developer Workflow Dashboard</span>
+  </header>
+
+  <main>
+    <!-- MW Health Card -->
+    <section class="card" id="card-mw-health">
+      <div class="card-header">
+        <span class="card-icon">🩺</span>
+        <div>
+          <h2>Middleware Health</h2>
+          <p class="card-desc">Check middleware process status for a given environment</p>
+        </div>
+      </div>
+
+      <div class="card-controls">
+        <div class="env-buttons">
+          <button class="btn btn-env" data-env="DEV">DEV</button>
+          <button class="btn btn-env" data-env="TST">TST</button>
+          <button class="btn btn-env" data-env="PRD">PRD</button>
+        </div>
+        <div class="field-row">
+          <label for="mw-max-chars">Max error chars</label>
+          <input type="number" id="mw-max-chars" value="300" min="50" max="5000" />
+        </div>
+      </div>
+
+      <div class="terminal-wrapper" id="terminal-mw-health" style="display:none">
+        <div class="terminal-bar">
+          <span class="terminal-label" id="terminal-mw-health-label">mw-health</span>
+          <div class="terminal-actions">
+            <span class="spinner" id="spinner-mw-health"></span>
+            <button class="btn btn-copy" id="copy-mw-health" style="display:none">📋 Copy</button>
+            <button class="btn btn-clear" id="clear-mw-health">✕</button>
+          </div>
+        </div>
+        <pre class="terminal-output" id="output-mw-health"></pre>
+      </div>
+    </section>
+
+    <!-- Create PRs Card -->
+    <section class="card" id="card-create-prs">
+      <div class="card-header">
+        <span class="card-icon">🔀</span>
+        <div>
+          <h2>Create PRs</h2>
+          <p class="card-desc">Open pull requests to test, stage, and build_branch</p>
+        </div>
+      </div>
+
+      <div class="card-controls">
+        <div class="field-row">
+          <label for="prs-branch">Source branch</label>
+          <input type="text" id="prs-branch" placeholder="Detecting..." />
+        </div>
+        <div class="field-row">
+          <label for="prs-title">PR title <span class="optional">(optional)</span></label>
+          <input type="text" id="prs-title" placeholder="Leave blank for default" />
+        </div>
+        <button class="btn btn-run" id="run-create-prs">🚀 Create PRs</button>
+      </div>
+
+      <div class="terminal-wrapper" id="terminal-create-prs" style="display:none">
+        <div class="terminal-bar">
+          <span class="terminal-label">create-prs</span>
+          <div class="terminal-actions">
+            <span class="spinner" id="spinner-create-prs"></span>
+            <button class="btn btn-clear" id="clear-create-prs">✕</button>
+          </div>
+        </div>
+        <pre class="terminal-output" id="output-create-prs"></pre>
+      </div>
+    </section>
+
+    <!-- Recon Card -->
+    <section class="card" id="card-recon">
+      <div class="card-header">
+        <span class="card-icon">🔧</span>
+        <div>
+          <h2>Reconciliation</h2>
+          <p class="card-desc">Fix branch divergence by creating a reconciliation branch</p>
+        </div>
+      </div>
+
+      <div class="card-controls">
+        <div class="field-row">
+          <label for="recon-branch">Branch to reconcile</label>
+          <input type="text" id="recon-branch" placeholder="e.g. feature/my-ticket" />
+        </div>
+        <div class="field-row">
+          <label for="recon-base">Base branch</label>
+          <input type="text" id="recon-base" placeholder="e.g. main" />
+        </div>
+        <button class="btn btn-run" id="run-recon">🔧 Run Recon</button>
+      </div>
+
+      <div class="terminal-wrapper" id="terminal-recon" style="display:none">
+        <div class="terminal-bar">
+          <span class="terminal-label">recon</span>
+          <div class="terminal-actions">
+            <span class="spinner" id="spinner-recon"></span>
+            <button class="btn btn-clear" id="clear-recon">✕</button>
+          </div>
+        </div>
+        <pre class="terminal-output" id="output-recon"></pre>
+      </div>
+    </section>
+  </main>
+
+  <script src="app.js"></script>
+</body>
+</html>

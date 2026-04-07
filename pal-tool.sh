@@ -5,17 +5,19 @@
 #   ./pal-tool create-prs <source_branch> [pr_title]
 #   ./pal-tool recon <branch_name> <base_branch>
 #   ./pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]
+#   ./pal-tool start
 #   ./pal-tool help | -h | --help
 
 COMMAND=$1
 
 function show_help() {
-    echo "Usage: pal-tool {create-prs|recon|mw-health|help} ..."
+    echo "Usage: pal-tool {create-prs|recon|mw-health|start|help} ..."
     echo
     echo "Commands:"
     echo "  create-prs <source_branch> [pr_title]              Create pull requests for multiple target branches."
     echo "  recon <branch_name> <base_branch>                  Create a reconciliation branch and merge changes."
     echo "  mw-health <DEV|TST|PRD> [-m|--max-chars <number>]  Check middleware health and print report."
+    echo "  start                                              Start the web dashboard and open it in the browser."
     echo "  help | -h | --help                                 Show this help message."
     echo
     echo "Options for mw-health:"
@@ -27,6 +29,7 @@ function show_help() {
     echo "  pal-tool mw-health DEV"
     echo "  pal-tool mw-health TST -m 500"
     echo "  pal-tool mw-health PRD --max-chars 1000"
+    echo "  pal-tool start"
     echo "  pal-tool help"
 }
 
@@ -175,13 +178,22 @@ function mw_health() {
         exit 1
     fi
 
-    read -r -p "User: " USER
-    read -r -s -p "Password: " PASSWORD
-    echo
-    read -r -p "TOTP code: " TOTP_CODE
+    # Load .env from script directory if present
+    ENV_FILE="${SCRIPT_DIR}/.env"
+    if [ -f "$ENV_FILE" ]; then
+        set -a
+        # shellcheck disable=SC1090
+        source "$ENV_FILE"
+        set +a
+    fi
 
-    # Try with TOTP in the Basic Auth string
-    BASIC_AUTH=$(echo -n "${USER}:${PASSWORD}:${TOTP_CODE}" | base64)
+    if [ -z "$MW_API_KEY" ]; then
+        echo "Error: MW_API_KEY is not set. Add it to ${SCRIPT_DIR}/.env"
+        echo "Example: MW_API_KEY=your_api_key_here"
+        exit 1
+    fi
+
+    TOKEN="$MW_API_KEY"
 
     spinner() {
         local pid=$1
@@ -195,87 +207,6 @@ function mw_health() {
         done
         printf '\r%s... done\n' "$message"
     }
-
-    TOKEN_TMP=$(mktemp)
-    (
-        curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
-            -H "Authorization: Basic ${BASIC_AUTH}" \
-            -H "Content-Type: application/json" \
-            -w "\nHTTP_CODE:%{http_code}" >"$TOKEN_TMP"
-    ) &
-    TOKEN_PID=$!
-    spinner "$TOKEN_PID" "Fetching token"
-    wait "$TOKEN_PID"
-    FULL_RESPONSE=$(cat "$TOKEN_TMP")
-    rm -f "$TOKEN_TMP"
-
-    # Extract HTTP code and response body
-    HTTP_CODE=$(echo "$FULL_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
-    RESPONSE=$(echo "$FULL_RESPONSE" | sed '/HTTP_CODE:/d')
-
-    TOKEN=$(printf '%s' "$RESPONSE" | sed -n 's/.*"token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-
-    if [ -z "$TOKEN" ]; then
-        echo "Token not found in response."
-        echo ""
-        echo "HTTP Status Code: ${HTTP_CODE:-unknown}"
-        echo ""
-        echo "Response received:"
-        echo "$RESPONSE"
-        echo ""
-        echo "Debug info:"
-        echo "  User: $USER"
-        echo "  URL: ${ENV_URL}/api/ui/auth/login"
-        echo "  Auth format: username:password:totp (Base64)"
-        echo ""
-
-        # If we got a 401 or credentials error, try alternative auth methods
-        if [[ "$HTTP_CODE" == "401" ]] || [[ "$RESPONSE" == *"Credentials are required"* ]]; then
-            echo "Authentication failed. Trying alternative authentication method..."
-            echo ""
-
-            # Try with JSON body instead
-            BASIC_AUTH_NO_TOTP=$(echo -n "${USER}:${PASSWORD}" | base64)
-            TOKEN_TMP2=$(mktemp)
-            (
-                curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
-                    -H "Authorization: Basic ${BASIC_AUTH_NO_TOTP}" \
-                    -H "Content-Type: application/json" \
-                    -d "{\"totp\":\"${TOTP_CODE}\"}" \
-                    -w "\nHTTP_CODE:%{http_code}" >"$TOKEN_TMP2"
-            ) &
-            TOKEN_PID2=$!
-            spinner "$TOKEN_PID2" "Retrying with TOTP in body"
-            wait "$TOKEN_PID2"
-            FULL_RESPONSE2=$(cat "$TOKEN_TMP2")
-            rm -f "$TOKEN_TMP2"
-
-            HTTP_CODE2=$(echo "$FULL_RESPONSE2" | grep "HTTP_CODE:" | cut -d: -f2)
-            RESPONSE2=$(echo "$FULL_RESPONSE2" | sed '/HTTP_CODE:/d')
-            TOKEN=$(printf '%s' "$RESPONSE2" | sed -n 's/.*"token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
-
-            if [ -z "$TOKEN" ]; then
-                echo "Alternative method also failed."
-                echo "HTTP Status Code: ${HTTP_CODE2:-unknown}"
-                echo "Response: $RESPONSE2"
-                echo ""
-                echo "Please check if:"
-                echo "  1. Your credentials are correct"
-                echo "  2. The TOTP code is valid (they expire quickly - get a fresh one)"
-                echo "  3. You have access to the ${ENV_NAME} environment"
-                echo "  4. The API endpoint has changed"
-                exit 1
-            else
-                echo "Success with alternative method!"
-            fi
-        else
-            echo "Please check if:"
-            echo "  1. Your credentials are correct"
-            echo "  2. The TOTP code is valid (they expire quickly)"
-            echo "  3. You have access to the ${ENV_NAME} environment"
-            exit 1
-        fi
-    fi
 
     PROCESS_NAMES=(
         "Brand Sync"
@@ -521,6 +452,15 @@ function mw_health() {
     echo "==============================================="
 }
 
+function start_web() {
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ ! -f "${SCRIPT_DIR}/package.json" ]; then
+        echo "Error: package.json not found. Run 'npm install' first from ${SCRIPT_DIR}"
+        exit 1
+    fi
+    cd "$SCRIPT_DIR" && node server.js
+}
+
 case "$COMMAND" in
     create-prs)
         create_prs "$2" "$3"
@@ -531,6 +471,9 @@ case "$COMMAND" in
     mw-health)
         shift
         mw_health "$@"
+        ;;
+    start)
+        start_web
         ;;
     help|-h|--help)
         show_help
