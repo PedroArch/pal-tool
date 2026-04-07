@@ -9,7 +9,6 @@ fetch('/api/branch')
 // ── Helpers ──────────────────────────────────────────────────────────────
 
 function classifyLine(text) {
-  const t = text.toLowerCase();
   if (/✅|success|created successfully|completed/i.test(text)) return 'line-success';
   if (/❌|error|fail|failed|fatal/i.test(text)) return 'line-error';
   if (/⏳|running|warning/i.test(text)) return 'line-warning';
@@ -38,8 +37,10 @@ function showTerminal(terminalId) {
 function clearTerminal(terminalId) {
   const output = document.getElementById(`output-${terminalId}`);
   const copyBtn = document.getElementById(`copy-${terminalId}`);
+  const reportBtn = document.getElementById(`copy-report-${terminalId}`);
   if (output) output.innerHTML = '';
   if (copyBtn) copyBtn.style.display = 'none';
+  if (reportBtn) reportBtn.style.display = 'none';
   const wrapper = document.getElementById(`terminal-${terminalId}`);
   if (wrapper) wrapper.style.display = 'none';
 }
@@ -74,6 +75,8 @@ function runCommand(url, terminalId, { onDone } = {}) {
       } else {
         appendLine(outputEl, '\n[Done]', 'line-dim');
         if (copyBtn) copyBtn.style.display = 'inline-block';
+        const reportBtn = document.getElementById(`copy-report-${terminalId}`);
+        if (reportBtn) reportBtn.style.display = 'inline-block';
       }
 
       if (onDone) onDone(code);
@@ -85,7 +88,6 @@ function runCommand(url, terminalId, { onDone } = {}) {
       return;
     }
 
-    // Unescape newlines encoded by server
     const lines = data.replace(/\\n/g, '\n').split('\n');
     lines.forEach(line => appendLine(outputEl, line));
   };
@@ -103,17 +105,26 @@ function runCommand(url, terminalId, { onDone } = {}) {
 // ── MW Health ────────────────────────────────────────────────────────────
 
 let mwRunning = false;
+const totpEl = document.getElementById('mw-totp');
 
 document.querySelectorAll('.btn-env').forEach(btn => {
   btn.addEventListener('click', () => {
     if (mwRunning) return;
+
+    const totp = totpEl.value.trim();
+    if (!totp) {
+      alert('Enter the TOTP code.');
+      totpEl.focus();
+      return;
+    }
 
     const env = btn.dataset.env;
     const maxChars = document.getElementById('mw-max-chars').value || 300;
     const labelEl = document.getElementById('terminal-mw-health-label');
     if (labelEl) labelEl.textContent = `mw-health ${env}`;
 
-    const url = `/run/mw-health?env=${encodeURIComponent(env)}&maxChars=${encodeURIComponent(maxChars)}`;
+    const params = new URLSearchParams({ env, maxChars, totp });
+    const url = `/run/mw-health?${params}`;
 
     mwRunning = true;
     disableButtons('.btn-env', true);
@@ -122,16 +133,35 @@ document.querySelectorAll('.btn-env').forEach(btn => {
       onDone: () => {
         mwRunning = false;
         disableButtons('.btn-env', false);
+        totpEl.value = '';
       }
     });
   });
 });
 
-// Copy mw-health output
+// Copy full mw-health output
 document.getElementById('copy-mw-health').addEventListener('click', () => {
   const output = document.getElementById('output-mw-health');
   navigator.clipboard.writeText(output.innerText).then(() => {
     const btn = document.getElementById('copy-mw-health');
+    const original = btn.textContent;
+    btn.textContent = '✅ Copied!';
+    setTimeout(() => { btn.textContent = original; }, 1500);
+  });
+});
+
+// Copy only the Final Report (from "Overnight Middleware..." onward)
+document.getElementById('copy-report-mw-health').addEventListener('click', () => {
+  const output = document.getElementById('output-mw-health');
+  const fullText = output.innerText;
+  const reportStart = fullText.indexOf('Overnight Middleware');
+  if (reportStart === -1) {
+    alert('Final Report not found in output. Run the health check first.');
+    return;
+  }
+  const reportText = fullText.substring(reportStart).trim();
+  navigator.clipboard.writeText(reportText).then(() => {
+    const btn = document.getElementById('copy-report-mw-health');
     const original = btn.textContent;
     btn.textContent = '✅ Copied!';
     setTimeout(() => { btn.textContent = original; }, 1500);

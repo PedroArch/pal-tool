@@ -160,12 +160,15 @@ function mw_health() {
     case "$ENV_NAME" in
         DEV)
             ENV_URL="https://mw-test-princessauto.objectedge.com"
+            ADMIN_URL="https://a1490790c1dev-admin.occa.ocs.oraclecloud.com"
             ;;
         TST)
             ENV_URL="https://mw-stage-princessauto.objectedge.com"
+            ADMIN_URL="https://a1490790c1tst-admin.occa.ocs.oraclecloud.com"
             ;;
         PRD)
             ENV_URL="https://mwprod-integration-princessauto.objectedge.com"
+            ADMIN_URL="https://a1490790c1prd-admin.occa.ocs.oraclecloud.com"
             ;;
         *)
             echo "Error: Invalid environment '$ENV_NAME'. Use DEV, TST, or PRD."
@@ -178,22 +181,18 @@ function mw_health() {
         exit 1
     fi
 
-    # Load .env from script directory if present
-    ENV_FILE="${SCRIPT_DIR}/.env"
-    if [ -f "$ENV_FILE" ]; then
-        set -a
-        # shellcheck disable=SC1090
-        source "$ENV_FILE"
-        set +a
+    # When called from web app, MW_USER/MW_PASSWORD/MW_TOTP are set as env vars
+    # When called from CLI, fall back to interactive prompts
+    if [ -z "$MW_USER" ]; then
+        read -r -p "User: " MW_USER
     fi
-
-    if [ -z "$MW_API_KEY" ]; then
-        echo "Error: MW_API_KEY is not set. Add it to ${SCRIPT_DIR}/.env"
-        echo "Example: MW_API_KEY=your_api_key_here"
-        exit 1
+    if [ -z "$MW_PASSWORD" ]; then
+        read -r -s -p "Password: " MW_PASSWORD
+        echo
     fi
-
-    TOKEN="$MW_API_KEY"
+    if [ -z "$MW_TOTP" ]; then
+        read -r -p "TOTP code: " MW_TOTP
+    fi
 
     spinner() {
         local pid=$1
@@ -207,6 +206,53 @@ function mw_health() {
         done
         printf '\r%s... done\n' "$message"
     }
+
+    BASIC_AUTH=$(echo -n "${MW_USER}:${MW_PASSWORD}:${MW_TOTP}" | base64)
+
+    TOKEN_TMP=$(mktemp)
+    (
+        curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
+            -H "Authorization: Basic ${BASIC_AUTH}" \
+            -H "Content-Type: application/json" \
+            -w "\nHTTP_CODE:%{http_code}" >"$TOKEN_TMP"
+    ) &
+    TOKEN_PID=$!
+    spinner "$TOKEN_PID" "Authenticating"
+    wait "$TOKEN_PID"
+    FULL_RESPONSE=$(cat "$TOKEN_TMP")
+    rm -f "$TOKEN_TMP"
+
+    HTTP_CODE=$(echo "$FULL_RESPONSE" | grep "HTTP_CODE:" | cut -d: -f2)
+    RESPONSE=$(echo "$FULL_RESPONSE" | sed '/HTTP_CODE:/d')
+    TOKEN=$(printf '%s' "$RESPONSE" | sed -n 's/.*"token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+
+    if [ -z "$TOKEN" ]; then
+        # Retry with TOTP in JSON body
+        BASIC_AUTH_NO_TOTP=$(echo -n "${MW_USER}:${MW_PASSWORD}" | base64)
+        TOKEN_TMP2=$(mktemp)
+        (
+            curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
+                -H "Authorization: Basic ${BASIC_AUTH_NO_TOTP}" \
+                -H "Content-Type: application/json" \
+                -d "{\"totp\":\"${MW_TOTP}\"}" \
+                -w "\nHTTP_CODE:%{http_code}" >"$TOKEN_TMP2"
+        ) &
+        TOKEN_PID2=$!
+        spinner "$TOKEN_PID2" "Authenticating (retry)"
+        wait "$TOKEN_PID2"
+        FULL_RESPONSE2=$(cat "$TOKEN_TMP2")
+        rm -f "$TOKEN_TMP2"
+
+        HTTP_CODE=$(echo "$FULL_RESPONSE2" | grep "HTTP_CODE:" | cut -d: -f2)
+        RESPONSE=$(echo "$FULL_RESPONSE2" | sed '/HTTP_CODE:/d')
+        TOKEN=$(printf '%s' "$RESPONSE" | sed -n 's/.*"token"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')
+    fi
+
+    if [ -z "$TOKEN" ]; then
+        echo "Authentication failed (HTTP ${HTTP_CODE:-unknown})."
+        echo "Response: $RESPONSE"
+        exit 1
+    fi
 
     PROCESS_NAMES=(
         "Brand Sync"
