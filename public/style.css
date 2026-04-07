@@ -18,7 +18,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: 'Mona Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   background: var(--bg);
   color: var(--text);
   min-height: 100vh;
@@ -30,18 +30,33 @@ header {
   margin-bottom: 36px;
 }
 
+.logo-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logo {
+  width: 52px;
+  height: 52px;
+}
+
+.logo-row > div { text-align: left; }
+
 header h1 {
-  font-size: 2rem;
+  font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -0.5px;
   color: var(--accent);
+  line-height: 1.1;
 }
 
 .subtitle {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 2px;
   display: block;
+  font-weight: 400;
 }
 
 main {
@@ -76,9 +91,10 @@ main {
 }
 
 .card-header h2 {
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 600;
   margin-bottom: 4px;
+  letter-spacing: -0.2px;
 }
 
 .card-desc {
@@ -283,7 +299,7 @@ main {
 
 .terminal-label {
   font-size: 0.75rem;
-  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-family: 'JetBrains Mono', 'SF Mono', monospace;
   color: var(--text-muted);
 }
 
@@ -296,7 +312,7 @@ main {
 .terminal-output {
   background: var(--terminal-bg);
   color: var(--terminal-text);
-  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+  font-family: 'JetBrains Mono', 'JetBrains Mono', 'SF Mono', monospace;
   font-size: 0.78rem;
   line-height: 1.6;
   padding: 14px 16px;
