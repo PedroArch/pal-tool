@@ -36,8 +36,8 @@ cp .env.example .env
 Edit `.env` and set your middleware credentials:
 
 ```
-MW_USER=your_user@example.com
-MW_PASSWORD=your_password
+OCC_USER=your_user@example.com
+OCC_PASSWORD=your_password
 ```
 
 The TOTP code is entered in the UI each time you run the health check.
@@ -104,7 +104,7 @@ pal-tool mw-health <DEV|TST|PRD> [-m|--max-chars <number>]
 
 - `-m, --max-chars <number>` — truncate error messages (default: 300). HTML errors are always shown in full.
 
-When run from the CLI without `MW_USER`/`MW_PASSWORD` env vars, the script prompts interactively for user, password, and TOTP.
+When run from the CLI without `OCC_USER`/`OCC_PASSWORD` env vars, the script prompts interactively for user, password, and TOTP.
 
 ## Configuration
 
@@ -112,8 +112,8 @@ When run from the CLI without `MW_USER`/`MW_PASSWORD` env vars, the script promp
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `MW_USER` | Yes | Middleware login username |
-| `MW_PASSWORD` | Yes | Middleware login password |
+| `OCC_USER` | Yes | Middleware login username |
+| `OCC_PASSWORD` | Yes | Middleware login password |
 | `PORT` | No | Web server port (default: 3000) |
 
 ### process.json

@@ -38,8 +38,8 @@ app.get('/run/:command', (req, res) => {
       res.end();
       return;
     }
-    if (!process.env.MW_USER || !process.env.MW_PASSWORD) {
-      res.write(`data: [ERROR] MW_USER and MW_PASSWORD not set in .env\n\n`);
+    if (!process.env.OCC_USER || !process.env.OCC_PASSWORD) {
+      res.write(`data: [ERROR] OCC_USER and OCC_PASSWORD not set in .env\n\n`);
       res.write(`data: [PAL_DONE:1]\n\n`);
       res.end();
       return;
@@ -50,7 +50,7 @@ app.get('/run/:command', (req, res) => {
       res.end();
       return;
     }
-    extraEnv = { MW_USER: process.env.MW_USER, MW_PASSWORD: process.env.MW_PASSWORD, MW_TOTP: totp };
+    extraEnv = { OCC_USER: process.env.OCC_USER, OCC_PASSWORD: process.env.OCC_PASSWORD, MW_TOTP: totp };
     const maxCharsNum = maxChars ? parseInt(maxChars, 10) : 300;
     args = ['mw-health', env.toUpperCase()];
     if (!isNaN(maxCharsNum) && maxCharsNum > 0) args.push('--max-chars', String(maxCharsNum));

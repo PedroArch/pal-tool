@@ -181,13 +181,13 @@ function mw_health() {
         exit 1
     fi
 
-    # When called from web app, MW_USER/MW_PASSWORD/MW_TOTP are set as env vars
+    # When called from web app, OCC_USER/OCC_PASSWORD/MW_TOTP are set as env vars
     # When called from CLI, fall back to interactive prompts
-    if [ -z "$MW_USER" ]; then
-        read -r -p "User: " MW_USER
+    if [ -z "$OCC_USER" ]; then
+        read -r -p "User: " OCC_USER
     fi
-    if [ -z "$MW_PASSWORD" ]; then
-        read -r -s -p "Password: " MW_PASSWORD
+    if [ -z "$OCC_PASSWORD" ]; then
+        read -r -s -p "Password: " OCC_PASSWORD
         echo
     fi
     if [ -z "$MW_TOTP" ]; then
@@ -207,7 +207,7 @@ function mw_health() {
         printf '\r%s... done\n' "$message"
     }
 
-    BASIC_AUTH=$(echo -n "${MW_USER}:${MW_PASSWORD}:${MW_TOTP}" | base64)
+    BASIC_AUTH=$(echo -n "${OCC_USER}:${OCC_PASSWORD}:${MW_TOTP}" | base64)
 
     TOKEN_TMP=$(mktemp)
     (
@@ -228,7 +228,7 @@ function mw_health() {
 
     if [ -z "$TOKEN" ]; then
         # Retry with TOTP in JSON body
-        BASIC_AUTH_NO_TOTP=$(echo -n "${MW_USER}:${MW_PASSWORD}" | base64)
+        BASIC_AUTH_NO_TOTP=$(echo -n "${OCC_USER}:${OCC_PASSWORD}" | base64)
         TOKEN_TMP2=$(mktemp)
         (
             curl -s -X POST "${ENV_URL}/api/ui/auth/login" \
@@ -491,10 +491,7 @@ function mw_health() {
 
     # Print summary
     echo "==============================================="
-    printf "Total: %d | " "${#PROCESS_NAMES[@]}"
-    printf '%b' "${GREEN}Success: ${#SUCCESS_PROCESSES[@]}${RESET} | "
-    printf '%b' "${YELLOW}Running: ${#RUNNING_PROCESSES[@]}${RESET} | "
-    printf '%b\n' "${RED}Failed: ${#FAILED_PROCESSES[@]}${RESET}"
+    printf '%b\n' "Total: ${#PROCESS_NAMES[@]} | ${GREEN}Success: ${#SUCCESS_PROCESSES[@]}${RESET} | ${YELLOW}Running: ${#RUNNING_PROCESSES[@]}${RESET} | ${RED}Failed: ${#FAILED_PROCESSES[@]}${RESET}"
     echo "==============================================="
 }
 
